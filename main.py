@@ -1,23 +1,27 @@
 from transformers import AutoTokenizer, pipeline
 from urllib.parse import urlparse, parse_qs
-from youtube_transcript_api import YouTubeTranscriptApi
-
+import requests
 
 MODEL_NAME = "facebook/bart-large-cnn"
 MAX_CHUNK_TOKENS = 900
 
 
-# Load the model once
-tokenizer = AutoTokenizer.from_pretrained(
-    MODEL_NAME,
-    model_max_length=1024
-)
+def load_summarizer():
+    tokenizer = AutoTokenizer.from_pretrained(
+        MODEL_NAME,
+        model_max_length=1024
+    )
 
-summarizer = pipeline(
-    "summarization",
-    model=MODEL_NAME,
-    tokenizer=tokenizer
-)
+    summarizer = pipeline(
+        "summarization",
+        model=MODEL_NAME,
+        tokenizer=tokenizer
+    )
+
+    return tokenizer, summarizer
+
+
+tokenizer, summarizer = load_summarizer()
 
 
 def extract_video_id(url: str) -> str:
@@ -69,25 +73,35 @@ def extract_video_id(url: str) -> str:
 
 def get_transcript(url: str) -> str:
     """
-    Extract the transcript from a YouTube video.
+    Retrieve the transcript from a YouTube video
+    using a hosted transcript service.
     """
 
-    video_id = extract_video_id(url)
-
-    api = YouTubeTranscriptApi()
-
-    fetched = api.fetch(
-        video_id,
-        languages=["ar", "en"]
+    response = requests.get(
+        "https://api.freetranscriptapi.com/v1/transcript",
+        params={
+            "video_url": url,
+            "lang": "en"
+        },
+        timeout=30
     )
 
-    text = "\n".join(
-        snippet.text
-        for snippet in fetched
+    response.raise_for_status()
+
+    data = response.json()
+
+    transcript = data.get("transcript", [])
+
+    if not transcript:
+        raise ValueError(
+            "No transcript was found for this video."
+        )
+
+    return "\n".join(
+        item["text"]
+        for item in transcript
+        if item.get("text")
     )
-
-    return text
-
 
 def chunk_text_by_tokens(
     text: str,

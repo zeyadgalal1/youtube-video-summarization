@@ -1,5 +1,5 @@
 streamlit
 transformers==4.57.1
 torch
-youtube-transcript-api
+requests
 sentencepiece
