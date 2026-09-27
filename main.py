@@ -72,47 +72,33 @@ def extract_video_id(url: str) -> str:
 
 
 def get_transcript(url: str) -> str:
-    languages = ["ar", "en"]
+    video_id = extract_video_id(url)
 
-    last_error = None
+    languages = ["ar", "en"]
 
     for language in languages:
         try:
             response = requests.get(
-                "https://api.freetranscriptapi.com/v1/transcript",
-                params={
-                    "video_url": url,
-                    "lang": language
-                },
+                f"https://youtube-transcript.ai/transcript/{video_id}.txt",
+                params={"lang": language},
                 timeout=30
             )
 
-            if response.status_code == 404:
+            if response.status_code != 200:
                 continue
 
-            response.raise_for_status()
-
-            data = response.json()
-            transcript = data.get("transcript", [])
+            transcript = response.text.strip()
 
             if transcript:
-                return "\n".join(
-                    item["text"]
-                    for item in transcript
-                    if item.get("text")
-                )
+                return transcript
 
-        except requests.RequestException as e:
-            last_error = e
-
-    if last_error:
-        raise ValueError(
-            "Could not retrieve a transcript for this video."
-        )
+        except requests.RequestException:
+            continue
 
     raise ValueError(
         "No Arabic or English transcript was found for this video."
     )
+
 
 def chunk_text_by_tokens(
     text: str,
