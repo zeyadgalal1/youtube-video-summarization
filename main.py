@@ -146,35 +146,82 @@ def summarize_long_text(
     min_length: int = 40,
     final_compression: bool = True
 ) -> str:
-    """
-    Summarize a transcript of any length.
-    """
 
-    chunks = chunk_text_by_tokens(text)
+    # Step 1: Split the transcript into manageable chunks
+    chunks = chunk_text_by_tokens(text, max_tokens=750)
 
     chunk_summaries = []
 
+    # Step 2: Summarize each chunk
     for chunk in chunks:
-
         result = summarizer(
             chunk,
-            max_length=max_length,
-            min_length=min_length
+            max_length=120,
+            min_length=30,
+            num_beams=4,
+            length_penalty=1.2,
+            no_repeat_ngram_size=3,
+            do_sample=False,
+            truncation=True
         )
 
-        summary_text = result[0]["summary_text"]
+        chunk_summaries.append(result[0]["summary_text"])
 
-        chunk_summaries.append(summary_text)
-
+    # Step 3: Combine the chunk summaries
     combined = " ".join(chunk_summaries)
 
-    # Compress all chunk summaries into one final summary
-    if final_compression and len(chunks) > 1:
+    # Step 4: If the combined summaries are still long,
+    # summarize them in smaller groups
+    combined_tokens = tokenizer.encode(
+        combined,
+        add_special_tokens=False
+    )
 
+    if len(combined_tokens) > 750:
+
+        smaller_chunks = []
+
+        for start in range(0, len(combined_tokens), 750):
+            chunk_ids = combined_tokens[start:start + 750]
+
+            smaller_chunk = tokenizer.decode(
+                chunk_ids,
+                skip_special_tokens=True
+            )
+
+            smaller_chunks.append(smaller_chunk)
+
+        reduced_summaries = []
+
+        for chunk in smaller_chunks:
+            result = summarizer(
+                chunk,
+                max_length=120,
+                min_length=30,
+                num_beams=4,
+                length_penalty=1.2,
+                no_repeat_ngram_size=3,
+                do_sample=False,
+                truncation=True
+            )
+
+            reduced_summaries.append(
+                result[0]["summary_text"]
+            )
+
+        combined = " ".join(reduced_summaries)
+
+    # Step 5: Generate the final summary
+    if final_compression:
         final = summarizer(
             combined,
             max_length=max_length,
-            min_length=min_length
+            min_length=min_length,
+            num_beams=4,
+            length_penalty=1.2,
+            no_repeat_ngram_size=3,
+            do_sample=False,
+            truncation=True
         )
 
         return final[0]["summary_text"]
