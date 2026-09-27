@@ -72,33 +72,36 @@ def extract_video_id(url: str) -> str:
 
 
 def get_transcript(url: str) -> str:
-    video_id = extract_video_id(url)
+    """
+    Retrieve the transcript from a YouTube video
+    using a hosted transcript service.
+    """
 
-    languages = ["ar", "en"]
-
-    for language in languages:
-        try:
-            response = requests.get(
-                f"https://youtube-transcript.ai/transcript/{video_id}.txt",
-                params={"lang": language},
-                timeout=30
-            )
-
-            if response.status_code != 200:
-                continue
-
-            transcript = response.text.strip()
-
-            if transcript:
-                return transcript
-
-        except requests.RequestException:
-            continue
-
-    raise ValueError(
-        "No Arabic or English transcript was found for this video."
+    response = requests.get(
+        "https://api.freetranscriptapi.com/v1/transcript",
+        params={
+            "video_url": url,
+            "lang": "en"
+        },
+        timeout=30
     )
 
+    response.raise_for_status()
+
+    data = response.json()
+
+    transcript = data.get("transcript", [])
+
+    if not transcript:
+        raise ValueError(
+            "No transcript was found for this video."
+        )
+
+    return "\n".join(
+        item["text"]
+        for item in transcript
+        if item.get("text")
+    )
 
 def chunk_text_by_tokens(
     text: str,
@@ -137,96 +140,29 @@ def chunk_text_by_tokens(
     return chunks
 
 
-def summarize_long_text(
-    text: str,
-    max_length: int = 150,
-    min_length: int = 40,
-    final_compression: bool = True
-) -> str:
-
-    # Step 1: Split the transcript into manageable chunks
-    chunks = chunk_text_by_tokens(text, max_tokens=750)
-
-    chunk_summaries = []
-
-    # Step 2: Summarize each chunk
-    for chunk in chunks:
-        result = summarizer(
-            chunk,
-            max_length=120,
-            min_length=30,
-            num_beams=4,
-            length_penalty=1.2,
-            no_repeat_ngram_size=3,
-            do_sample=False,
-            truncation=True
-        )
-
-        chunk_summaries.append(result[0]["summary_text"])
-
-    # Step 3: Combine the chunk summaries
-    combined = " ".join(chunk_summaries)
-
-    # Step 4: If the combined summaries are still long,
-    # summarize them in smaller groups
-    combined_tokens = tokenizer.encode(
-        combined,
-        add_special_tokens=False
+def get_transcript(url: str) -> str:
+    response = requests.get(
+        "https://api.freetranscriptapi.com/v1/transcript",
+        params={
+            "video_url": url,
+            "lang": "en"
+        },
+        timeout=30
     )
 
-    if len(combined_tokens) > 750:
+    response.raise_for_status()
 
-        smaller_chunks = []
+    data = response.json()
+    transcript = data.get("transcript", [])
 
-        for start in range(0, len(combined_tokens), 750):
-            chunk_ids = combined_tokens[start:start + 750]
+    if not transcript:
+        raise ValueError("No English transcript was found for this video.")
 
-            smaller_chunk = tokenizer.decode(
-                chunk_ids,
-                skip_special_tokens=True
-            )
-
-            smaller_chunks.append(smaller_chunk)
-
-        reduced_summaries = []
-
-        for chunk in smaller_chunks:
-            result = summarizer(
-                chunk,
-                max_length=120,
-                min_length=30,
-                num_beams=4,
-                length_penalty=1.2,
-                no_repeat_ngram_size=3,
-                do_sample=False,
-                truncation=True
-            )
-
-            reduced_summaries.append(
-                result[0]["summary_text"]
-            )
-
-        combined = " ".join(reduced_summaries)
-
-    # Step 5: Generate the final summary
-    if final_compression:
-        final = summarizer(
-            combined,
-            max_length=max_length,
-            min_length=min_length,
-            num_beams=4,
-            length_penalty=1.2,
-            no_repeat_ngram_size=3,
-            do_sample=False,
-            truncation=True
-        )
-
-        return final[0]["summary_text"]
-
-    return combined
-
-
-
+    return "\n".join(
+        item["text"]
+        for item in transcript
+        if item.get("text")
+    )
 
 def summarize_youtube_video(
     url: str,
