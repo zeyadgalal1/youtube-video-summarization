@@ -72,16 +72,10 @@ def extract_video_id(url: str) -> str:
 
 
 def get_transcript(url: str) -> str:
-    """
-    Retrieve the transcript from a YouTube video
-    using a hosted transcript service.
-    """
-
     response = requests.get(
         "https://api.freetranscriptapi.com/v1/transcript",
         params={
-            "video_url": url,
-            "lang": "en"
+            "video_url": url
         },
         timeout=30
     )
@@ -93,9 +87,7 @@ def get_transcript(url: str) -> str:
     transcript = data.get("transcript", [])
 
     if not transcript:
-        raise ValueError(
-            "No transcript was found for this video."
-        )
+        raise ValueError("No transcript was found for this video.")
 
     return "\n".join(
         item["text"]
