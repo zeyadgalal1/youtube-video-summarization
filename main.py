@@ -142,9 +142,10 @@ def chunk_text_by_tokens(
 
 def summarize_long_text(
     text: str,
+    max_length: int = 150,
+    min_length: int = 40,
     final_compression: bool = True
 ) -> str:
-
     """
     Summarize a transcript of any length.
     """
@@ -157,8 +158,8 @@ def summarize_long_text(
 
         result = summarizer(
             chunk,
-            max_length=150,
-            min_length=30
+            max_length=max_length,
+            min_length=min_length
         )
 
         summary_text = result[0]["summary_text"]
@@ -172,8 +173,8 @@ def summarize_long_text(
 
         final = summarizer(
             combined,
-            max_length=150,
-            min_length=30
+            max_length=max_length,
+            min_length=min_length
         )
 
         return final[0]["summary_text"]
@@ -181,7 +182,13 @@ def summarize_long_text(
     return combined
 
 
-def summarize_youtube_video(url: str) -> str:
+
+
+def summarize_youtube_video(
+    url: str,
+    max_length: int = 150,
+    min_length: int = 40
+) -> str:
     """
     Complete pipeline:
     YouTube URL → Transcript → Summary
@@ -196,6 +203,8 @@ def summarize_youtube_video(url: str) -> str:
 
     summary = summarize_long_text(
         text,
+        max_length=max_length,
+        min_length=min_length,
         final_compression=True
     )
 
