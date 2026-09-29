@@ -1,6 +1,11 @@
 import streamlit as st
-from main import summarize_youtube_video
 
+try:
+    from main import summarize_youtube_video
+except Exception as e:
+    st.error("Application startup error:")
+    st.exception(e)
+    st.stop()
 
 # --------------------------------------------------
 # Page configuration
