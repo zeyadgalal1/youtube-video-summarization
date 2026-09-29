@@ -71,7 +71,7 @@ st.markdown(
 # Language Notice
 # -----------------------------
 
-st.info("🇬🇧 English videos only")
+st.info("note: This app works best with English videos only")
 
 
 # -----------------------------
