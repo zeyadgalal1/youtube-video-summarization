@@ -180,14 +180,13 @@ youtube_url = st.text_input(
 st.markdown("### ⚙️ Summary Settings")
 
 summary_length = st.select_slider(
-    "Choose summary length",
-    options=[
-        "Short",
-        "Medium",
-        "Long"
-    ],
+    "Summary Length",
+    options=["Short", "Medium", "Long"],
     value="Medium"
 )
+
+st.caption("Short = quick overview  •  Medium = balanced  •  Long = more detail")
+
 
 
 length_settings = {
