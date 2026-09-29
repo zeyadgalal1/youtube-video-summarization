@@ -22,6 +22,7 @@ def load_summarizer():
 
 
 tokenizer, summarizer = load_summarizer()
+tokenizer.model_max_length = 1000000
 
 
 def extract_video_id(url: str) -> str:
