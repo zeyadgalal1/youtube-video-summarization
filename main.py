@@ -1,10 +1,18 @@
+
+import time
+import requests
+
 from transformers import AutoTokenizer, pipeline
 from urllib.parse import urlparse, parse_qs
-import requests
+
 
 MODEL_NAME = "facebook/bart-large-cnn"
 MAX_CHUNK_TOKENS = 900
 
+
+# ==========================================
+# 1. LOAD MODEL
+# ==========================================
 
 def load_summarizer():
     tokenizer = AutoTokenizer.from_pretrained(
@@ -21,14 +29,21 @@ def load_summarizer():
     return tokenizer, summarizer
 
 
-tokenizer, summarizer = load_summarizer()
-tokenizer.model_max_length = 1000000
+model_start_time = time.perf_counter()
 
+tokenizer, summarizer = load_summarizer()
+
+print(
+    f"Model loading time: "
+    f"{time.perf_counter() - model_start_time:.2f} seconds"
+)
+
+
+# ==========================================
+# 2. EXTRACT YOUTUBE VIDEO ID
+# ==========================================
 
 def extract_video_id(url: str) -> str:
-    """
-    Extract the YouTube video ID from a URL.
-    """
 
     parsed = urlparse(url)
 
@@ -37,14 +52,13 @@ def extract_video_id(url: str) -> str:
     if host.startswith("www."):
         host = host[4:]
 
-    # youtu.be/VIDEO_ID
     if host == "youtu.be":
+
         video_id = parsed.path.lstrip("/").split("/")[0]
 
         if video_id:
             return video_id
 
-    # youtube.com/watch?v=VIDEO_ID
     if host in (
         "youtube.com",
         "m.youtube.com",
@@ -56,27 +70,24 @@ def extract_video_id(url: str) -> str:
         if qs.get("v"):
             return qs["v"][0]
 
-        # youtube.com/shorts/VIDEO_ID
-        # youtube.com/embed/VIDEO_ID
-        # youtube.com/live/VIDEO_ID
         parts = parsed.path.strip("/").split("/")
 
-        if len(parts) >= 2 and parts[0] in (
-            "shorts",
-            "embed",
-            "live",
-            "v"
+        if (
+            len(parts) >= 2
+            and parts[0] in ("shorts", "embed", "live", "v")
         ):
             return parts[1]
 
     raise ValueError(f"No video ID found in URL: {url}")
 
 
+# ==========================================
+# 3. GET ENGLISH TRANSCRIPT
+# ==========================================
+
 def get_transcript(url: str) -> str:
-    """
-    Retrieve the transcript from a YouTube video
-    using a hosted transcript service.
-    """
+
+    start_time = time.perf_counter()
 
     response = requests.get(
         "https://api.freetranscriptapi.com/v1/transcript",
@@ -94,25 +105,30 @@ def get_transcript(url: str) -> str:
     transcript = data.get("transcript", [])
 
     if not transcript:
-        raise ValueError(
-            "No transcript was found for this video."
-        )
+        raise ValueError("No transcript was found for this video.")
 
-    return "\n".join(
+    text = "\n".join(
         item["text"]
         for item in transcript
         if item.get("text")
     )
 
+    print(
+        f"Transcript retrieval time: "
+        f"{time.perf_counter() - start_time:.2f} seconds"
+    )
+
+    return text
+
+
+# ==========================================
+# 4. SPLIT TEXT INTO CHUNKS
+# ==========================================
+
 def chunk_text_by_tokens(
     text: str,
     max_tokens: int = MAX_CHUNK_TOKENS
 ) -> list[str]:
-
-    """
-    Split text into chunks that fit within
-    the model's token limit.
-    """
 
     input_ids = tokenizer.encode(
         text,
@@ -121,15 +137,9 @@ def chunk_text_by_tokens(
 
     chunks = []
 
-    for start in range(
-        0,
-        len(input_ids),
-        max_tokens
-    ):
+    for start in range(0, len(input_ids), max_tokens):
 
-        chunk_ids = input_ids[
-            start:start + max_tokens
-        ]
+        chunk_ids = input_ids[start:start + max_tokens]
 
         chunk_text = tokenizer.decode(
             chunk_ids,
@@ -141,6 +151,10 @@ def chunk_text_by_tokens(
     return chunks
 
 
+# ==========================================
+# 5. SUMMARIZE LONG TEXT
+# ==========================================
+
 def summarize_long_text(
     text: str,
     max_length: int = 150,
@@ -148,16 +162,26 @@ def summarize_long_text(
     final_compression: bool = True
 ) -> str:
 
-    chunks = chunk_text_by_tokens(text, max_tokens=750)
+    total_start_time = time.perf_counter()
+
+    chunks = chunk_text_by_tokens(
+        text,
+        max_tokens=750
+    )
+
+    print(f"Number of chunks: {len(chunks)}")
 
     chunk_summaries = []
 
-    for chunk in chunks:
+    for i, chunk in enumerate(chunks, start=1):
+
+        chunk_start_time = time.perf_counter()
+
         result = summarizer(
             chunk,
             max_length=120,
             min_length=30,
-            num_beams=4,
+            num_beams=1,
             length_penalty=1.2,
             no_repeat_ngram_size=3,
             do_sample=False,
@@ -168,6 +192,11 @@ def summarize_long_text(
             result[0]["summary_text"]
         )
 
+        print(
+            f"Chunk {i}/{len(chunks)} time: "
+            f"{time.perf_counter() - chunk_start_time:.2f} seconds"
+        )
+
     combined = " ".join(chunk_summaries)
 
     combined_tokens = tokenizer.encode(
@@ -175,11 +204,14 @@ def summarize_long_text(
         add_special_tokens=False
     )
 
+    # Second compression if necessary
+
     if len(combined_tokens) > 750:
 
         smaller_chunks = []
 
         for start in range(0, len(combined_tokens), 750):
+
             chunk_ids = combined_tokens[start:start + 750]
 
             smaller_chunk = tokenizer.decode(
@@ -191,7 +223,10 @@ def summarize_long_text(
 
         reduced_summaries = []
 
-        for chunk in smaller_chunks:
+        for i, chunk in enumerate(smaller_chunks, start=1):
+
+            reduction_start_time = time.perf_counter()
+
             result = summarizer(
                 chunk,
                 max_length=120,
@@ -207,9 +242,19 @@ def summarize_long_text(
                 result[0]["summary_text"]
             )
 
+            print(
+                f"Reduction {i}/{len(smaller_chunks)} time: "
+                f"{time.perf_counter() - reduction_start_time:.2f} seconds"
+            )
+
         combined = " ".join(reduced_summaries)
 
+    # Final compression
+
     if final_compression:
+
+        final_start_time = time.perf_counter()
+
         final = summarizer(
             combined,
             max_length=max_length,
@@ -221,51 +266,41 @@ def summarize_long_text(
             truncation=True
         )
 
-        return final[0]["summary_text"]
+        print(
+            f"Final compression time: "
+            f"{time.perf_counter() - final_start_time:.2f} seconds"
+        )
 
-    return combined
+        summary = final[0]["summary_text"]
 
+    else:
 
-def get_transcript(url: str) -> str:
-    response = requests.get(
-        "https://api.freetranscriptapi.com/v1/transcript",
-        params={
-            "video_url": url,
-            "lang": "en"
-        },
-        timeout=30
+        summary = combined
+
+    print(
+        f"Total summarization time: "
+        f"{time.perf_counter() - total_start_time:.2f} seconds"
     )
 
-    response.raise_for_status()
+    return summary
 
-    data = response.json()
-    transcript = data.get("transcript", [])
 
-    if not transcript:
-        raise ValueError("No English transcript was found for this video.")
-
-    return "\n".join(
-        item["text"]
-        for item in transcript
-        if item.get("text")
-    )
+# ==========================================
+# 6. SUMMARIZE YOUTUBE VIDEO
+# ==========================================
 
 def summarize_youtube_video(
     url: str,
     max_length: int = 150,
     min_length: int = 40
 ) -> str:
-    """
-    Complete pipeline:
-    YouTube URL → Transcript → Summary
-    """
+
+    start_time = time.perf_counter()
 
     text = get_transcript(url)
 
     if not text.strip():
-        raise ValueError(
-            "No transcript was found for this video."
-        )
+        raise ValueError("No transcript was found for this video.")
 
     summary = summarize_long_text(
         text,
@@ -273,5 +308,14 @@ def summarize_youtube_video(
         min_length=min_length,
         final_compression=True
     )
+
+    print("\n========== PERFORMANCE REPORT ==========")
+
+    print(
+        f"Total processing time: "
+        f"{time.perf_counter() - start_time:.2f} seconds"
+    )
+
+    print("=========================================\n")
 
     return summary
