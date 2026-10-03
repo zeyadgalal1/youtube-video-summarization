@@ -1,56 +1,67 @@
 # YouTube Video Summarization 🎥🤖
 
-An AI-powered YouTube video summarization system that extracts a video's transcript and generates a concise summary using the **BART Large CNN** transformer model from Hugging Face.
+An AI-powered YouTube Video Summarization application that extracts video transcripts and generates concise summaries using the **BART Large CNN** Transformer model from Hugging Face.
+
+The application provides a user-friendly web interface built with **Streamlit** and is deployed on Streamlit Community Cloud.
+
+## 🚀 Live Demo
+
+**Try the application:** https://zeyadgalal1-youtube-video-summarization-app-ggprys.streamlit.app/
+
+## 📸 Application Demo
+
+<!-- Add a screenshot of your Streamlit application here -->
 
 ## 🚀 Project Overview
 
-This project automatically summarizes YouTube videos by:
+This project automatically summarizes YouTube videos through the following pipeline:
 
-1. Extracting the YouTube video ID from the URL.
-2. Fetching the video's transcript using the YouTube Transcript API.
-3. Splitting long transcripts into smaller token-based chunks.
-4. Summarizing each chunk using **BART Large CNN**.
-5. Combining the generated summaries.
-6. Applying a final summarization step to produce a concise final summary.
+1. Extracts the YouTube video ID from the provided URL.
+2. Fetches the available video transcript using the YouTube Transcript API.
+3. Splits long transcripts into smaller token-based chunks.
+4. Summarizes each chunk using BART Large CNN.
+5. Combines the generated summaries.
+6. Applies a final summarization step to generate one concise summary.
 
 ## 🧠 Architecture
 
 ```text
 YouTube Video URL
-        │
-        ▼
+        |
+        v
 Extract Video ID
-        │
-        ▼
+        |
+        v
 YouTube Transcript API
-        │
-        ▼
+        |
+        v
 Video Transcript
-        │
-        ▼
+        |
+        v
 Token-Based Chunking
-        │
-        ▼
+        |
+        v
 BART Large CNN
-        │
-        ▼
+        |
+        v
 Chunk Summaries
-        │
-        ▼
+        |
+        v
 Final Compression
-        │
-        ▼
+        |
+        v
 Final Video Summary
 ```
 
 ## 🛠️ Technologies Used
 
 * **Python**
-* **Hugging Face Transformers**
-* **BART Large CNN**
-* **PyTorch**
-* **YouTube Transcript API**
-* **Hugging Face Tokenizer**
+* **Streamlit** – Web application interface
+* **Hugging Face Transformers** – NLP model integration
+* **BART Large CNN** – Text summarization
+* **PyTorch** – Deep learning framework
+* **YouTube Transcript API** – Transcript extraction
+* **Hugging Face Tokenizer** – Tokenization and chunking
 
 ## 🤖 Model
 
@@ -60,7 +71,7 @@ The project uses:
 facebook/bart-large-cnn
 ```
 
-BART Large CNN is a transformer-based sequence-to-sequence model that is fine-tuned for abstractive text summarization.
+BART Large CNN is a Transformer-based sequence-to-sequence model fine-tuned for abstractive text summarization.
 
 ## ⚙️ How It Works
 
@@ -78,18 +89,13 @@ https://www.youtube.com/live/VIDEO_ID
 
 ### 2. Fetch the Transcript
 
-The project uses `youtube-transcript-api` to retrieve the available transcript.
-
-It attempts to support:
-
-* English (`en`)
-* Arabic (`ar`)
+The application uses `youtube-transcript-api` to retrieve the available transcript.
 
 ### 3. Token-Based Chunking
 
-Long transcripts cannot always be passed directly to the model because transformer models have a maximum input length.
+Long transcripts cannot always be passed directly to the model because Transformer models have maximum input-length limitations.
 
-The project therefore uses the BART tokenizer to divide the transcript into chunks.
+The BART tokenizer is used to divide long transcripts into smaller chunks.
 
 ```python
 MAX_CHUNK_TOKENS = 900
@@ -99,7 +105,7 @@ Each chunk is processed separately.
 
 ### 4. Summarize Each Chunk
 
-Each transcript chunk is passed to BART:
+Each transcript chunk is passed to the summarization pipeline:
 
 ```python
 result = summarizer(
@@ -109,15 +115,27 @@ result = summarizer(
 )
 ```
 
-The generated summaries are then stored.
+The generated summaries are stored and combined.
 
 ### 5. Final Compression
 
-If the transcript contains multiple chunks, their summaries are combined and passed through BART again.
+When the transcript contains multiple chunks, their summaries are combined and passed through another summarization step to generate one concise final summary.
 
-This produces one final concise summary of the complete video.
+## ✨ Features
+
+* 🎥 YouTube video URL processing
+* 📝 Automatic transcript extraction
+* 🔤 Token-based transcript chunking
+* 🤖 BART Large CNN summarization
+* 📚 Long transcript handling
+* 🧠 Multi-stage summarization
+* 📄 Concise final video summaries
+* 🌐 Interactive Streamlit web interface
+* ☁️ Cloud deployment
 
 ## 📁 Project Structure
+
+Update this section to match your actual repository structure.
 
 ```text
 youtube-video-summarization/
@@ -144,7 +162,7 @@ Clone the repository:
 git clone https://github.com/zeyadgalal1/youtube-video-summarization.git
 ```
 
-Move into the project directory:
+Navigate to the project directory:
 
 ```bash
 cd youtube-video-summarization
@@ -156,97 +174,41 @@ Create a virtual environment:
 python -m venv venv
 ```
 
-Activate the virtual environment on Windows:
+Activate it on Windows:
 
 ```bash
 venv\Scripts\activate
 ```
 
-Install the required dependencies:
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## ▶️ Usage
+## ▶️ Run Locally
 
-Run the project:
+Start the Streamlit application:
 
 ```bash
-python src/main.py
+streamlit run app.py
 ```
 
-Enter a YouTube video URL when prompted:
+If your Streamlit entry-point has a different filename, replace `app.py` with its actual name.
 
-```text
-Enter YouTube URL:
-```
-
-The system will:
-
-```text
-Fetching transcript...
-Split transcript into X chunk(s).
-Chunk 1/X summarized.
-Chunk 2/X summarized.
-...
---- Final Summary ---
-```
-
-## 📝 Example
-
-### Input
-
-```text
-https://youtu.be/vLijZb9BpkE
-```
-
-### Processing
-
-```text
-YouTube URL
-     ↓
-Video ID
-     ↓
-Transcript
-     ↓
-900-token chunks
-     ↓
-BART summarization
-     ↓
-Combined summaries
-     ↓
-Final summary
-```
-
-### Output
-
-```text
---- Final Summary ---
-
-The system generates a concise summary
-containing the main information from the video.
-```
-
-## ✨ Features
-
-* 🎥 YouTube video URL processing
-* 📝 Automatic transcript extraction
-* 🌍 English and Arabic transcript support
-* 🔤 Token-based transcript chunking
-* 🤖 BART Large CNN summarization
-* 📚 Long transcript handling
-* 🧠 Multi-stage summarization
-* 📄 Final concise video summary
+Open the local URL displayed in your terminal to access the application.
 
 ## 🔮 Future Improvements
 
-* Add a web interface using **Streamlit**
-* Add speech-to-text for videos without transcripts
-* Support more languages
-* Add timestamps to important sections
-* Allow users to download summaries
-* Build a REST API
-* Add a graphical user interface
-* Add multiple summarization models for comparison
+* Add speech-to-text support for videos without available transcripts.
+* Add timestamps to important sections.
+* Allow users to download generated summaries.
+* Build a REST API.
+* Experiment with different summarization models.
+* Improve summarization quality and processing efficiency.
 
+## 👨‍💻 Author
+
+**Zeyad Galal**
+
+GitHub: [@zeyadgalal1](https://github.com/zeyadgalal1)
